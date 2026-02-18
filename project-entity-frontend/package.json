@@ -1,13 +1,14 @@
 {
-  "name": "project-entity-frontend",
+  "name": "project-entity",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync-cards": "node scripts/sync-cards.js"
   },
   "dependencies": {
     "react": "^19.2.0",

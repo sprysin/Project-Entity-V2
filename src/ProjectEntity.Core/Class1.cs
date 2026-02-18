@@ -1,4 +1,4 @@
-﻿namespace ProjectEntity.Core;
+namespace ProjectEntity.Core;
 
 public class Class1
 {

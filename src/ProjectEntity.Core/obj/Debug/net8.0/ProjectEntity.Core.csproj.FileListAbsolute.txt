@@ -9,3 +9,4 @@ C:\Users\drake\Documents\Antigrav Google\Project Entity V2\src\ProjectEntity.Cor
 C:\Users\drake\Documents\Antigrav Google\Project Entity V2\src\ProjectEntity.Core\obj\Debug\net8.0\refint\ProjectEntity.Core.dll
 C:\Users\drake\Documents\Antigrav Google\Project Entity V2\src\ProjectEntity.Core\obj\Debug\net8.0\ProjectEntity.Core.pdb
 C:\Users\drake\Documents\Antigrav Google\Project Entity V2\src\ProjectEntity.Core\obj\Debug\net8.0\ref\ProjectEntity.Core.dll
+C:\Users\drake\Documents\Antigrav Google\Project Entity V2\src\ProjectEntity.Core\obj\Debug\net8.0\ProjectEntity.Core.sourcelink.json

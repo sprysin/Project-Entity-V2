@@ -12,7 +12,7 @@ public class SolsticeSentinel : Pawn
         Defense = 100;
         Attribute = PawnAttribute.Light;
         PawnType = PawnType.Mechanical;
-        EffectText = "When this card is summoned gain 100 lifepoints.";
+        EffectText = "ON NORMAL SUMMON: Gain 100 lifepoints.";
 
         // "Grab" the effect from the library or instantiate it
         // In a real scenario, we might query the library by ID/Name

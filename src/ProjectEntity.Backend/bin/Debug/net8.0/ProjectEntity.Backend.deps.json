@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "ProjectEntity.Backend/1.0.0": {
+        "dependencies": {
+          "ProjectEntity.Core": "1.0.0"
+        },
+        "runtime": {
+          "ProjectEntity.Backend.dll": {}
+        }
+      },
+      "ProjectEntity.Core/1.0.0": {
+        "runtime": {
+          "ProjectEntity.Core.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ProjectEntity.Backend/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ProjectEntity.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
