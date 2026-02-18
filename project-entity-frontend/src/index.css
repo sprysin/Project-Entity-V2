@@ -255,8 +255,7 @@ button.primary:hover {
 
 .card-effect-box p {
     margin: 0;
-    /* Scales down for long effect text, up for short */
-    font-size: clamp(0.58rem, 1.5vw, 0.75rem);
+    font-size: 0.65rem;
     font-family: var(--font-mono);
     font-style: normal;
     color: var(--color-text-secondary);
@@ -282,46 +281,47 @@ button.primary:hover {
     display: flex;
     align-items: stretch;
     background: rgba(255, 215, 0, 0.15);
-    border-bottom: 1px solid rgba(255, 215, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 233, 31, 0.788);
 }
 
 .pawn-card__name {
     flex: 1;
-    padding: 0.55rem 0.85rem;
+    padding: 0.4rem 0.6rem;
     font-family: var(--font-header);
-    /* Scales fluidly: shrinks for long names, grows for short ones */
-    font-size: clamp(0.55rem, 1.8vw, 0.82rem);
+    font-size: clamp(0.5rem, 1.4cqw, 0.72rem);
     font-weight: 700;
     color: var(--color-accent);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    word-break: break-word;
 }
 
 .pawn-card__level {
-    min-width: 44px;
-    padding: 0 0.3rem;
+    /* True square: width is driven by the header height */
+    aspect-ratio: 1 / 1;
+    width: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(255, 215, 0, 0.25);
-    border-left: 1px solid rgba(255, 215, 0, 0.4);
+    border-left: 1px solid rgba(255, 233, 31, 0.788);
     font-family: var(--font-header);
-    font-size: clamp(0.55rem, 1.6vw, 0.75rem);
+    font-size: 0.6rem;
     font-weight: 900;
     color: var(--color-accent);
     white-space: nowrap;
+    padding: 0 4px;
 }
 
 /* Descriptor row: attribute circle + typing */
 .pawn-card__descriptor {
     display: flex;
     align-items: center;
+    font-family: var(--font-main);
+    font-color: rgba(255, 233, 31, 0.788);
     gap: 0.6rem;
     padding: 0.1rem 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 233, 31, 0.788);
     background: rgba(0, 0, 0, 0.2);
 }
 
@@ -352,11 +352,11 @@ button.primary:hover {
    ATTRIBUTE CIRCLE
    ============================================= */
 .attr-circle {
-    width: 25px;
-    height: 25px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     flex-shrink: 0;
-    border: 1px solid #FFD700;
+    border: 2px solid #FFD700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -410,10 +410,10 @@ button.primary:hover {
 }
 
 .utility-card__name {
+    flex: 1;
     font-family: var(--font-header);
-    font-size: clamp(0.55rem, 1.8vw, 0.82rem);
+    font-size: clamp(0.5rem, 1.4cqw, 0.72rem);
     font-weight: 700;
-    text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #fff;
     white-space: nowrap;

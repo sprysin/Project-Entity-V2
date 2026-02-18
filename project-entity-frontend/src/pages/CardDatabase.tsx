@@ -41,6 +41,17 @@ const MOCK_CARDS: MockCard[] = [
         defense: 100,
     },
     {
+        cardFamily: 'Pawn',
+        id: 'high_king_of_the_west',
+        name: 'High King of the West',
+        level: 5,
+        attribute: 'Earth',
+        pawnType: 'Warrior',
+        effectText: 'ON SUMMON: Target 1 face-up monster on the field; it loses 20 ATK.',
+        attack: 170,
+        defense: 50,
+    },
+    {
         cardFamily: 'Utility',
         id: 'void_blast',
         name: 'Void Blast',
