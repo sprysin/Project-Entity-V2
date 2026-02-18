@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import PlayerField from '../components/Game/PlayerField';
 import Hand from '../components/Game/Hand';
+import PawnCard from '../components/PawnCard';
+import UtilityCard from '../components/UtilityCard';
+import { PileViewerModal } from '../components/Game/Pile';
+import { GAME_CARDS } from '../data/cards';
+import type { CardData } from '../types';
 
 interface GameFieldProps {
     gameMode?: 'mirror' | 'solo';
@@ -17,6 +22,9 @@ const INITIAL_LOG = [
 
 const PHASES = ['MAIN 1', 'BATTLE', 'MAIN 2', 'END'];
 
+// Sidebar card scale: sidebar is 320px wide, card is 59mm (~223px). Scale to ~260px wide.
+const SIDEBAR_CARD_SCALE = 260 / 223;
+
 const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
     const [turn, setTurn] = useState(1);
     const [phaseIndex, setPhaseIndex] = useState(0);
@@ -25,6 +33,17 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
     const [log] = useState<string[]>(INITIAL_LOG);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
+
+    // Mock hand — same cards as Hand.tsx uses
+    const mockHand: CardData[] = GAME_CARDS.slice(0, 5);
+    const selectedCard = selectedHandIndex !== null ? mockHand[selectedHandIndex] : null;
+
+    // Pile data — empty by default, populated by game state in a real game
+    const mockDiscard: CardData[] = [];
+    const mockVoid: CardData[] = [];
+
+    // Pile viewer state: null = closed, 'discard' | 'void' = open
+    const [viewingPile, setViewingPile] = useState<'discard' | 'void' | null>(null);
 
     const currentPhase = PHASES[phaseIndex];
 
@@ -80,7 +99,7 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                             e.currentTarget.style.color = '#94a3b8';
                         }}
                     >
-                        ⏻ EXIT GAME
+                        EXIT GAME
                     </button>
                 </div>
 
@@ -155,7 +174,11 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
 
                     {/* OPPONENT FIELD */}
                     <div style={{ opacity: 0.9 }}>
-                        <PlayerField isOpponent={true} />
+                        <PlayerField
+                            isOpponent={true}
+                            onDiscardClick={() => setViewingPile('discard')}
+                            onVoidClick={() => setViewingPile('void')}
+                        />
                     </div>
 
                     {/* ── LP BAR (center divider) ── */}
@@ -193,7 +216,11 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                     </div>
 
                     {/* PLAYER FIELD */}
-                    <PlayerField isOpponent={false} />
+                    <PlayerField
+                        isOpponent={false}
+                        onDiscardClick={() => setViewingPile('discard')}
+                        onVoidClick={() => setViewingPile('void')}
+                    />
 
                 </div>
 
@@ -205,6 +232,24 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                 />
 
             </div>
+
+            {/* ── PILE VIEWER MODAL ── */}
+            {viewingPile === 'discard' && (
+                <PileViewerModal
+                    title="Discard Pile"
+                    cards={mockDiscard}
+                    type="discard"
+                    onClose={() => setViewingPile(null)}
+                />
+            )}
+            {viewingPile === 'void' && (
+                <PileViewerModal
+                    title="Void"
+                    cards={mockVoid}
+                    type="void"
+                    onClose={() => setViewingPile(null)}
+                />
+            )}
 
             {/* ── RIGHT SIDEBAR ── */}
             <div style={{
@@ -254,50 +299,85 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                 {isSidebarOpen ? (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         {/* Card Detail Panel */}
-                        <div style={{ padding: '24px', paddingBottom: '8px', flexShrink: 0 }}>
-                            {selectedHandIndex !== null ? (
-                                // Selected card detail
+                        <div style={{ padding: '16px', paddingBottom: '8px', flexShrink: 0 }}>
+                            {selectedCard ? (
+                                // Selected card — render actual PawnCard / UtilityCard
                                 <div style={{ animation: 'fadeIn 0.3s' }}>
+                                    {/* Card scaled to fit sidebar width */}
                                     <div style={{
-                                        width: '100%',
-                                        aspectRatio: '2/3',
-                                        background: 'linear-gradient(160deg, rgba(20,15,0,0.95), rgba(10,8,0,0.95))',
-                                        border: '2px solid rgba(255,215,0,0.5)',
-                                        borderRadius: '4px',
-                                        padding: '12px',
-                                        boxSizing: 'border-box',
+                                        transformOrigin: 'top center',
+                                        transform: `scale(${SIDEBAR_CARD_SCALE})`,
+                                        // Compensate height so the container doesn't leave a gap
+                                        marginBottom: `${Math.round(325 * SIDEBAR_CARD_SCALE - 325)}px`,
                                         display: 'flex',
-                                        flexDirection: 'column',
-                                        color: 'white',
-                                        marginBottom: '16px',
+                                        justifyContent: 'center',
                                     }}>
-                                        <div style={{ fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '6px', marginBottom: '8px' }}>
-                                            Force Fire Sparker
-                                        </div>
-                                        <div style={{ fontSize: '10px', fontFamily: 'monospace', lineHeight: 1.5, opacity: 0.8, flex: 1 }}>
-                                            ON NORMAL SUMMON: Deal 10 damage for each set Action/Condition on opponent's field.
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                            <span style={{ color: '#FFD700' }}>ATK: 30</span>
-                                            <span style={{ color: '#60a5fa' }}>DEF: 150</span>
-                                        </div>
+                                        {selectedCard.cardFamily === 'Pawn' ? (
+                                            <PawnCard
+                                                name={selectedCard.name}
+                                                level={selectedCard.level}
+                                                attribute={selectedCard.attribute}
+                                                pawnType={selectedCard.pawnType}
+                                                effectText={selectedCard.effectText}
+                                                attack={selectedCard.attack}
+                                                defense={selectedCard.defense}
+                                            />
+                                        ) : (
+                                            <UtilityCard
+                                                name={selectedCard.name}
+                                                type={selectedCard.type}
+                                                subType={selectedCard.subType}
+                                                effectText={selectedCard.effectText}
+                                            />
+                                        )}
                                     </div>
-                                    {/* Action buttons */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <button style={{
-                                            width: '100%', padding: '12px',
-                                            background: '#ca8a04', border: 'none', color: 'white',
-                                            fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                            letterSpacing: '2px', cursor: 'pointer',
-                                            borderBottom: '4px solid #92400e',
-                                            transition: 'all 0.1s ease',
-                                        }}>NORMAL SUMMON</button>
-                                        <button style={{
-                                            width: '100%', padding: '12px',
-                                            background: 'rgba(30,41,59,1)', border: '1px solid rgba(255,255,255,0.2)', color: '#cbd5e1',
-                                            fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                            letterSpacing: '2px', cursor: 'pointer',
-                                        }}>SET HIDDEN</button>
+                                    {/* Action buttons — dynamic based on card type */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '90px' }}>
+                                        {selectedCard.cardFamily === 'Pawn' ? (
+                                            <>
+                                                <button style={{
+                                                    width: '100%', padding: '12px',
+                                                    background: '#ca8a04', border: 'none', color: 'white',
+                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
+                                                    letterSpacing: '2px', cursor: 'pointer',
+                                                    borderBottom: '4px solid #92400e',
+                                                    transition: 'all 0.1s ease',
+                                                }}
+                                                    onMouseEnter={e => (e.currentTarget.style.background = '#eab308')}
+                                                    onMouseLeave={e => (e.currentTarget.style.background = '#ca8a04')}
+                                                >
+                                                    {selectedCard.level >= 5 ? 'TRIBUTE SUMMON' : 'NORMAL SUMMON'}
+                                                </button>
+                                                <button style={{
+                                                    width: '100%', padding: '12px',
+                                                    background: 'rgba(30,41,59,1)', border: '1px solid rgba(255,255,255,0.2)', color: '#cbd5e1',
+                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
+                                                    letterSpacing: '2px', cursor: 'pointer',
+                                                }}>SET HIDDEN</button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {selectedCard.type !== 'Condition' && (
+                                                    <button style={{
+                                                        width: '100%', padding: '12px',
+                                                        background: '#16a34a', border: 'none', color: 'white',
+                                                        fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
+                                                        letterSpacing: '2px', cursor: 'pointer',
+                                                        borderBottom: '4px solid #14532d',
+                                                        transition: 'all 0.1s ease',
+                                                    }}
+                                                        onMouseEnter={e => (e.currentTarget.style.background = '#22c55e')}
+                                                        onMouseLeave={e => (e.currentTarget.style.background = '#16a34a')}
+                                                    >ACTIVATE ACTION</button>
+                                                )}
+                                                <button style={{
+                                                    width: '100%', padding: '12px',
+                                                    background: 'rgba(30,41,59,1)', border: '1px solid rgba(255,255,255,0.2)', color: '#cbd5e1',
+                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
+                                                    letterSpacing: '2px', cursor: 'pointer',
+                                                }}>SET CARD</button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ) : (

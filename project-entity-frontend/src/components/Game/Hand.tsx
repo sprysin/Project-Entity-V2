@@ -1,16 +1,11 @@
 import React from 'react';
-
-interface HandCard {
-    instanceId?: string;
-    name: string;
-    effectText?: string;
-    atk?: number;
-    def?: number;
-    cardType?: 'entity' | 'action' | 'condition';
-}
+import type { CardData } from '../../types';
+import { GAME_CARDS } from '../../data/cards';
+import PawnCard from '../PawnCard';
+import UtilityCard from '../UtilityCard';
 
 interface HandProps {
-    cards?: HandCard[];
+    cards?: CardData[];
     isOpponent?: boolean;
     selectedHandIndex?: number | null;
     onCardClick?: (index: number) => void;
@@ -19,31 +14,24 @@ interface HandProps {
     domRef?: (index: number) => (el: HTMLElement | null) => void;
 }
 
+const CARD_SCALE = 0.7;
+// Natural card dimensions (px)
+const CARD_W = 223;
+const CARD_H = 325;
+// Scaled dimensions
+const SCALED_W = Math.round(CARD_W * CARD_SCALE);
+const SCALED_H = Math.round(CARD_H * CARD_SCALE);
+
 const Hand: React.FC<HandProps> = ({
     cards,
     isOpponent = false,
     selectedHandIndex = null,
     onCardClick,
-    drawStartIndex = null,
     containerRef,
     domRef,
 }) => {
     // Mock hand if no cards provided
-    const displayCards: HandCard[] = cards ?? Array(5).fill({
-        instanceId: 'mock',
-        name: 'Force Fire Sparker',
-        effectText: 'ON NORMAL SUMMON: Deal 10 damage for each set Action/Condition on opponent\'s field.',
-        atk: 30,
-        def: 150,
-        cardType: 'entity',
-    });
-
-    const getCardTypeClass = (card: HandCard) => {
-        if (card.cardType === 'entity') return 'card-entity glow-gold';
-        if (card.cardType === 'action') return 'card-action glow-green';
-        if (card.cardType === 'condition') return 'card-condition glow-pink';
-        return 'card-entity glow-gold';
-    };
+    const displayCards: CardData[] = cards ?? GAME_CARDS.slice(0, 5);
 
     if (isOpponent) {
         // Opponent hand: card backs peeking from top
@@ -56,7 +44,6 @@ const Hand: React.FC<HandProps> = ({
                     width: '100%',
                     display: 'flex',
                     justifyContent: 'center',
-                    gap: '-10px',
                     zIndex: 20,
                     pointerEvents: 'none',
                 }}
@@ -66,8 +53,8 @@ const Hand: React.FC<HandProps> = ({
                         key={i}
                         className="card-back"
                         style={{
-                            width: '112px',
-                            aspectRatio: '2/3',
+                            width: `${SCALED_W}px`,
+                            height: `${SCALED_H}px`,
                             borderRadius: '4px',
                             border: '2px solid rgba(148, 163, 184, 0.4)',
                             boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
@@ -84,7 +71,7 @@ const Hand: React.FC<HandProps> = ({
         );
     }
 
-    // Player hand: cards peeking from bottom
+    // Player hand: full PawnCard/UtilityCard visuals peeking from bottom
     return (
         <div
             ref={containerRef}
@@ -94,61 +81,73 @@ const Hand: React.FC<HandProps> = ({
                 width: '100%',
                 display: 'flex',
                 justifyContent: 'center',
+                alignItems: 'flex-end',
                 zIndex: 50,
                 pointerEvents: 'none',
-                paddingBottom: 0,
             }}
         >
             {displayCards.map((card, i) => {
                 const isSelected = selectedHandIndex === i;
-                const isDrawing = drawStartIndex !== null && i >= drawStartIndex;
-                const cardTypeClass = getCardTypeClass(card);
 
                 return (
+                    // Outer wrapper: reserves the SCALED space in the layout
                     <div
-                        key={card.instanceId ?? i}
+                        key={card.id + i}
                         ref={domRef ? domRef(i) : undefined}
                         onClick={() => onCardClick?.(i)}
-                        className={`${cardTypeClass}`}
                         style={{
-                            width: '144px',
-                            aspectRatio: '2/3',
-                            borderRadius: '4px',
-                            border: '2px solid rgba(148, 163, 184, 0.5)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                            transform: isSelected ? 'translateY(-20%)' : 'translateY(30%)',
-                            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                            width: `${SCALED_W}px`,
+                            height: `${SCALED_H}px`,
+                            position: 'relative',
+                            flexShrink: 0,
+                            marginLeft: i === 0 ? 0 : '-14px',
                             cursor: 'pointer',
                             pointerEvents: 'auto',
-                            marginLeft: i === 0 ? 0 : '-10px',
                             zIndex: isSelected ? 20 : 10,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            flexShrink: 0,
+                            // Translate the whole slot up/down
+                            transform: isSelected ? 'translateY(-30%)' : 'translateY(55%)',
+                            transition: 'transform 0.3s ease, z-index 0s',
                             outline: isSelected ? '3px solid #FFD700' : 'none',
                             outlineOffset: '2px',
-                            animationDelay: isDrawing ? `${(i - (drawStartIndex ?? 0)) * 150}ms` : '0ms',
                         }}
                         onMouseEnter={e => {
-                            if (!isSelected) e.currentTarget.style.transform = 'translateY(0%)';
+                            if (!isSelected) e.currentTarget.style.transform = 'translateY(10%)';
                         }}
                         onMouseLeave={e => {
-                            if (!isSelected) e.currentTarget.style.transform = 'translateY(30%)';
+                            if (!isSelected) e.currentTarget.style.transform = 'translateY(55%)';
                         }}
                     >
-                        <div className="card-inner-border" />
-                        <div style={{ padding: '6px', display: 'flex', flexDirection: 'column', height: '100%', color: 'white', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
-                            <div style={{ fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', paddingBottom: '4px', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {card.name}
-                            </div>
-                            <div style={{ flex: 1, fontSize: '7px', fontFamily: 'monospace', lineHeight: 1.4, opacity: 0.8, overflow: 'hidden', background: 'rgba(0,0,0,0.2)', borderRadius: '2px', padding: '3px' }}>
-                                {card.effectText}
-                            </div>
-                            {card.atk !== undefined && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '9px', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <span style={{ color: '#FFD700' }}>A:{card.atk}</span>
-                                    <span style={{ color: '#60a5fa' }}>D:{card.def}</span>
-                                </div>
+                        {/* Inner wrapper: applies CSS scale from bottom-center */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                transformOrigin: 'bottom center',
+                                transform: `scale(${CARD_SCALE})`,
+                                // Offset to align the scaled card within the slot
+                                marginLeft: `${-(CARD_W - SCALED_W) / 2}px`,
+                                pointerEvents: 'none',
+                                filter: isSelected ? 'drop-shadow(0 0 12px rgba(255,215,0,0.8))' : 'drop-shadow(0 4px 16px rgba(0,0,0,0.8))',
+                            }}
+                        >
+                            {card.cardFamily === 'Pawn' ? (
+                                <PawnCard
+                                    name={card.name}
+                                    level={card.level}
+                                    attribute={card.attribute}
+                                    pawnType={card.pawnType}
+                                    effectText={card.effectText}
+                                    attack={card.attack}
+                                    defense={card.defense}
+                                />
+                            ) : (
+                                <UtilityCard
+                                    name={card.name}
+                                    type={card.type}
+                                    subType={card.subType}
+                                    effectText={card.effectText}
+                                />
                             )}
                         </div>
                     </div>

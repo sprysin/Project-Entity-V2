@@ -29,7 +29,6 @@ interface ZoneProps {
 
 const Zone: React.FC<ZoneProps> = ({
     type,
-    owner = 'active',
     card = null,
     isSelected,
     isSelectable,
