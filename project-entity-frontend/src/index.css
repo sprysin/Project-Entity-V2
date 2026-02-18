@@ -135,6 +135,298 @@ button.primary:hover {
 }
 
 /* =============================================
+   GAME FIELD STYLES
+   ============================================= */
+
+/* Card Back — diagonal stripe pattern */
+.card-back {
+    background-color: #0a0a14;
+    background-image:
+        repeating-linear-gradient(45deg,
+            rgba(255, 215, 0, 0.04) 0px,
+            rgba(255, 215, 0, 0.04) 1px,
+            transparent 1px,
+            transparent 12px);
+    border: 2px solid rgba(255, 215, 0, 0.2);
+}
+
+/* Zone fill styles */
+.card-entity {
+    background: linear-gradient(160deg, rgba(20, 15, 0, 0.95) 0%, rgba(10, 8, 0, 0.95) 100%);
+    border-color: rgba(255, 215, 0, 0.5) !important;
+}
+
+.card-action {
+    background: linear-gradient(160deg, rgba(0, 15, 8, 0.95) 0%, rgba(0, 8, 4, 0.95) 100%);
+    border-color: rgba(0, 200, 100, 0.5) !important;
+}
+
+.card-condition {
+    background: linear-gradient(160deg, rgba(15, 0, 8, 0.95) 0%, rgba(8, 0, 4, 0.95) 100%);
+    border-color: rgba(255, 100, 180, 0.5) !important;
+}
+
+/* Inner border glow on occupied zones */
+.card-inner-border {
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Drop target — dashed animated border */
+.zone-drop-target {
+    border: 2px dashed rgba(255, 215, 0, 0.6) !important;
+    background: rgba(255, 215, 0, 0.05) !important;
+    animation: dropPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes dropPulse {
+    from {
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+    }
+
+    to {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+}
+
+/* Selectable / attack target pulse */
+.zone-selectable {
+    border-color: rgba(239, 68, 68, 0.8) !important;
+    animation: redPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes redPulse {
+    from {
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+    }
+
+    to {
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.7);
+    }
+}
+
+/* Tribute selection pulse */
+.zone-tribute {
+    border-color: rgba(74, 222, 128, 0.8) !important;
+    animation: greenPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes greenPulse {
+    from {
+        box-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+    }
+
+    to {
+        box-shadow: 0 0 25px rgba(74, 222, 128, 0.7);
+    }
+}
+
+/* Pile flash animations */
+@keyframes flashGold {
+
+    0%,
+    100% {
+        box-shadow: none;
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.3);
+    }
+}
+
+@keyframes flashPurple {
+
+    0%,
+    100% {
+        box-shadow: none;
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(167, 139, 250, 0.8), inset 0 0 15px rgba(167, 139, 250, 0.3);
+    }
+}
+
+.flash-gold {
+    animation: flashGold 0.8s ease-in-out;
+}
+
+.flash-purple {
+    animation: flashPurple 0.8s ease-in-out;
+}
+
+/* Phase slide-in overlay */
+@keyframes phaseSlide {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+
+    15% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    80% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.phase-slide {
+    animation: phaseSlide 1.5s ease-in-out forwards;
+}
+
+/* Turn change slide-in overlay */
+@keyframes turnSlide {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    20% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    75% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+}
+
+.turn-slide {
+    animation: turnSlide 1.5s ease-in-out forwards;
+}
+
+/* Hand card glow variants */
+.glow-gold {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+}
+
+.glow-green {
+    box-shadow: 0 0 12px rgba(0, 200, 100, 0.4);
+}
+
+.glow-pink {
+    box-shadow: 0 0 12px rgba(255, 100, 180, 0.4);
+}
+
+.glow-activatable {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.7), 0 0 40px rgba(255, 215, 0, 0.3);
+}
+
+/* Stat change pop animation */
+@keyframes statPop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.5);
+        color: white;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.stat-changed {
+    animation: statPop 0.8s ease-in-out;
+}
+
+/* =============================================
+   LANDING PAGE (HUB) STYLES
+   ============================================= */
+.retro-hash {
+    /* Optional: Add a subtle grid/hash pattern here if desired */
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+}
+
+/* Shine Button (Play Game) */
+.btn-shine-container {
+    position: relative;
+    overflow: hidden;
+    background-color: #ca8a04;
+    /* yellow-600 */
+    border: 1px solid rgba(250, 204, 21, 0.3);
+    /* yellow-400/30 */
+    box-shadow: 0 0 20px rgba(202, 138, 4, 0.3);
+    color: white;
+    font-family: var(--font-header);
+    font-weight: bold;
+    padding: 1rem 2rem;
+    transition: all 0.3s ease;
+}
+
+.btn-shine-container:hover {
+    background-color: #eab308;
+    /* yellow-500 */
+    transform: scale(1.05);
+    /* slightly smaller than active scale-95 for hover pop */
+}
+
+.btn-shine-container:active {
+    transform: scale(0.95);
+}
+
+.btn-shine-effect {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(-100%) skewX(-20deg);
+    transition: transform 0.5s ease;
+    pointer-events: none;
+}
+
+.btn-shine-container:hover .btn-shine-effect {
+    transform: translateX(100%) skewX(-20deg);
+}
+
+/* Secondary Buttons */
+.btn-glass {
+    background-color: rgba(15, 23, 42, 0.8);
+    /* slate-900/80 */
+    color: #cbd5e1;
+    /* slate-300 */
+    border: 1px solid rgba(51, 65, 85, 0.5);
+    /* slate-700/50 */
+    backdrop-filter: blur(12px);
+    /* md */
+    font-family: var(--font-header);
+    font-weight: bold;
+    padding: 1rem 2rem;
+    transition: all 0.2s ease;
+}
+
+.btn-glass:hover {
+    background-color: rgba(30, 41, 59, 1);
+    /* slate-800 */
+    color: white;
+    transform: scale(1.02);
+}
+
+.btn-glass:active {
+    transform: scale(0.95);
+}
+
+/* =============================================
    CARD DATABASE PAGE
    ============================================= */
 .card-database {

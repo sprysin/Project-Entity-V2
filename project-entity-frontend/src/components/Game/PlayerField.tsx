@@ -1,73 +1,166 @@
 import React from 'react';
 import Zone from './Zone';
+import { Pile, DeckPile } from './Pile';
 
 interface PlayerFieldProps {
-    player: 'p1' | 'p2';
-    isMirrored: boolean;
+    isOpponent?: boolean;
+    // Pile counts
+    discardCount?: number;
+    voidCount?: number;
+    deckCount?: number;
+    discardFlash?: boolean;
+    voidFlash?: boolean;
+    // Zone data
+    entityZones?: (any | null)[];
+    actionZones?: (any | null)[];
+    // Callbacks
+    onDiscardClick?: () => void;
+    onVoidClick?: () => void;
+    onEntityZoneClick?: (index: number) => void;
+    onActionZoneClick?: (index: number) => void;
+    // Selection states
+    selectedFieldSlot?: { type: 'entity' | 'action'; index: number } | null;
+    selectableZones?: { type: 'entity' | 'action'; index: number }[];
+    tributeSelection?: number[];
+    dropTargetZones?: { type: 'entity' | 'action'; index: number }[];
+    // Refs
+    entityZoneRefs?: ((el: HTMLElement | null) => void)[];
+    actionZoneRefs?: ((el: HTMLElement | null) => void)[];
+    discardRef?: (el: HTMLElement | null) => void;
+    voidRef?: (el: HTMLElement | null) => void;
+    deckRef?: (el: HTMLElement | null) => void;
 }
 
-const PlayerField: React.FC<PlayerFieldProps> = ({ player, isMirrored }) => {
-    return (
-        <div style={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',
-            gap: '20px', // Space between rows
-            padding: '20px'
-        }}>
+/**
+ * PlayerField — renders one player's side of the field.
+ *
+ * Reference layout (active player, bottom half):
+ *   Row 1: [Entity × 5]  [Discard] [Void]
+ *   Row 2: [Action × 5]  [Deck]
+ *
+ * For opponent (top half), rows are reversed:
+ *   Row 1: [Action × 5]  [Deck]
+ *   Row 2: [Entity × 5]  [Discard] [Void]
+ */
+const PlayerField: React.FC<PlayerFieldProps> = ({
+    isOpponent = false,
+    discardCount = 0,
+    voidCount = 0,
+    deckCount = 35,
+    discardFlash = false,
+    voidFlash = false,
+    entityZones = Array(5).fill(null),
+    actionZones = Array(5).fill(null),
+    onDiscardClick,
+    onVoidClick,
+    onEntityZoneClick,
+    onActionZoneClick,
+    selectedFieldSlot,
+    selectableZones = [],
+    tributeSelection = [],
+    dropTargetZones = [],
+    entityZoneRefs,
+    actionZoneRefs,
+    discardRef,
+    voidRef,
+    deckRef,
+}) => {
+    const ROW_GAP = '16px';
+    const ZONE_GAP = '12px';
 
-            <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
-                {/* FIELD ZONES CONTAINER */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {/* ROW 1: PAWN ZONES */}
-                    {/* If it's the opponent (top), the pawn zones should be closest to the center line? 
-                         Wait, usually in TCGs:
-                         Opponent Side:
-                         [S/T] [S/T] [S/T] [S/T] [S/T] (Back Row)
-                         [MON] [MON] [MON] [MON] [MON] (Front Row)
-                         ---------------- CENTER LINE ----------------
-                         [MON] [MON] [MON] [MON] [MON] (Front Row)
-                         [S/T] [S/T] [S/T] [S/T] [S/T] (Back Row)
+    const isZoneSelectable = (type: 'entity' | 'action', index: number) =>
+        selectableZones.some(z => z.type === type && z.index === index);
+    const isDropTarget = (type: 'entity' | 'action', index: number) =>
+        dropTargetZones.some(z => z.type === type && z.index === index);
 
-                         Since we rotate the opponent's field 180deg in GameField, we can just build it "normally" (Back Row top, Front Row bottom)
-                         and the rotation handles the visual perspective.
-                      */}
-
-                    {/* PAWN ZONES (Front Row) */}
-                    <div className="zone-row" style={{ display: 'flex', gap: '15px' }}>
-                        {[...Array(5)].map((_, i) => (
-                            <Zone key={`pawn-${i}`} type="Pawn" />
-                        ))}
-                    </div>
-
-                    {/* UTILITY ZONES (Back Row - Actions/Conditions) */}
-                    <div className="zone-row" style={{ display: 'flex', gap: '15px' }}>
-                        {[...Array(5)].map((_, i) => (
-                            <Zone key={`action-${i}`} type="Action" />
-                        ))}
-                    </div>
-                </div>
-
-                {/* SIDE ZONES (Deck/Grave/Void) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'space-between', height: '100%' }}>
-                    {/* Row: Grave & Void (TOP) */}
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                        <Zone type="Grave" label="DISCARD" count={0} />
-                        <Zone type="Void" label="VOID" count={0} />
-                    </div>
-
-                    {/* Row: Deck (BOTTOM) */}
-                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
-                        <Zone type="Deck" label="DECK" count={35} />
-                    </div>
-                </div>
+    // Entity row
+    const EntityRow = () => (
+        <div style={{ display: 'flex', gap: ZONE_GAP, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: ZONE_GAP }}>
+                {entityZones.map((z, i) => (
+                    <Zone
+                        key={`entity-${i}`}
+                        type="entity"
+                        owner={isOpponent ? 'opponent' : 'active'}
+                        card={z ? {
+                            name: z.card?.name ?? '',
+                            effectText: z.card?.effectText,
+                            atk: z.card?.atk,
+                            def: z.card?.def,
+                            cardType: 'entity',
+                            isHidden: z.position === 'hidden',
+                            isDefense: z.position === 'defense' || z.position === 'hidden',
+                        } : null}
+                        isSelected={selectedFieldSlot?.type === 'entity' && selectedFieldSlot?.index === i}
+                        isSelectable={isZoneSelectable('entity', i)}
+                        isTributeSelected={tributeSelection.includes(i)}
+                        isDropTarget={isDropTarget('entity', i)}
+                        onClick={() => onEntityZoneClick?.(i)}
+                        domRef={entityZoneRefs?.[i]}
+                    />
+                ))}
             </div>
-
+            {/* Piles next to entity row */}
+            <div style={{ display: 'flex', gap: ZONE_GAP, marginLeft: '8px' }}>
+                <Pile count={discardCount} label="Discard" color="slate" isFlashing={discardFlash} onClick={onDiscardClick} domRef={discardRef} />
+                <Pile count={voidCount} label="Void" color="purple" isFlashing={voidFlash} onClick={onVoidClick} domRef={voidRef} />
+            </div>
         </div>
     );
 
+    // Action row
+    const ActionRow = () => (
+        <div style={{ display: 'flex', gap: ZONE_GAP, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: ZONE_GAP }}>
+                {actionZones.map((z, i) => (
+                    <Zone
+                        key={`action-${i}`}
+                        type="action"
+                        owner={isOpponent ? 'opponent' : 'active'}
+                        card={z ? {
+                            name: z.card?.name ?? '',
+                            effectText: z.card?.effectText,
+                            cardType: z.card?.type === 'condition' ? 'condition' : 'action',
+                            isHidden: z.position === 'hidden',
+                        } : null}
+                        isSelected={selectedFieldSlot?.type === 'action' && selectedFieldSlot?.index === i}
+                        isSelectable={isZoneSelectable('action', i)}
+                        isDropTarget={isDropTarget('action', i)}
+                        onClick={() => onActionZoneClick?.(i)}
+                        domRef={actionZoneRefs?.[i]}
+                    />
+                ))}
+            </div>
+            {/* Deck next to action row */}
+            <div style={{ marginLeft: '8px' }}>
+                <DeckPile count={deckCount} domRef={deckRef} />
+            </div>
+        </div>
+    );
+
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: ROW_GAP,
+            padding: '8px 0',
+        }}>
+            {isOpponent ? (
+                // Opponent: Action row closer to top, Entity row closer to center
+                <>
+                    <ActionRow />
+                    <EntityRow />
+                </>
+            ) : (
+                // Active player: Entity row closer to center, Action row below
+                <>
+                    <EntityRow />
+                    <ActionRow />
+                </>
+            )}
+        </div>
+    );
 };
 
 export default PlayerField;
