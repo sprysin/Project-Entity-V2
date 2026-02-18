@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import Home from './pages/Home';
 import CardDatabase from './pages/CardDatabase';
+import GameField from './pages/GameField';
 
 function App() {
-    const [currentPage, setCurrentPage] = useState<'home' | 'database'>('home');
+    const [currentPage, setCurrentPage] = useState<'home' | 'database' | 'game-mirror' | 'game-solo'>('home');
 
     return (
         <div className="app-container" style={{ position: 'relative', height: '100vh', width: '100vw' }}>
@@ -23,6 +24,13 @@ function App() {
 
             {currentPage === 'database' && (
                 <CardDatabase onNavigate={setCurrentPage} />
+            )}
+
+            {(currentPage === 'game-mirror' || currentPage === 'game-solo') && (
+                <GameField
+                    gameMode={currentPage === 'game-mirror' ? 'mirror' : 'solo'}
+                    onExit={() => setCurrentPage('home')}
+                />
             )}
         </div>
     );

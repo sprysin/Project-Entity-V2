@@ -49,7 +49,7 @@ export const GAME_CARDS: CardData[] = [
         "level": 4,
         "attribute": "Light",
         "pawnType": "Mechanical",
-        "effectText": "When this card is summoned gain 100 lifepoints.",
+        "effectText": "ON NORMAL SUMMON: Gain 100 lifepoints.",
         "attack": 120,
         "defense": 100
     }

@@ -1,10 +1,11 @@
 import React from 'react';
 
 interface HomeProps {
-    onNavigate: (page: 'home' | 'database') => void;
+    onNavigate: (page: 'home' | 'database' | 'game-mirror' | 'game-solo') => void;
 }
 
 const Home: React.FC<HomeProps> = ({ onNavigate }) => {
+    const [showGameModes, setShowGameModes] = React.useState(false);
     return (
         <div style={{
             display: 'flex',
@@ -39,9 +40,23 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
             {/* MENU BUTTONS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '300px' }}>
-                <button className="primary" onClick={() => alert("Game Loop not connected yet!")}>
-                    PLAY TEST GAME
-                </button>
+                {!showGameModes ? (
+                    <button className="primary" onClick={() => setShowGameModes(true)}>
+                        PLAY TEST GAME
+                    </button>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', animation: 'fadeIn 0.3s' }}>
+                        <button className="primary" style={{ fontSize: '0.9rem' }} onClick={() => onNavigate('game-mirror')}>
+                            PLAY MIRROR (2P)
+                        </button>
+                        <button className="primary" style={{ fontSize: '0.9rem' }} onClick={() => onNavigate('game-solo')}>
+                            PLAY SOLO (1P)
+                        </button>
+                        <button style={{ fontSize: '0.8rem', padding: '5px' }} onClick={() => setShowGameModes(false)}>
+                            BACK
+                        </button>
+                    </div>
+                )}
 
                 <button onClick={() => onNavigate('database')}>
                     CARD DATABASE
