@@ -24,7 +24,7 @@ public static class CardEffectLibrary
         return _effects.GetValueOrDefault(name);
     }
 
-    // specific effect implementations
+    // specific effect implementations------------------------------------------------------------
 
     public class GainLifePointsEffect : IEffect
     {
@@ -75,8 +75,7 @@ public static class CardEffectLibrary
 
         public void Execute(IGameContext context, object source)
         {
-            // Logic for High King: Target logic needed
-            // context.ModifyPawnStat(...);
+            // NEED target logic to be added that allows the player to target a card based on specifications
         }
     }
 }
