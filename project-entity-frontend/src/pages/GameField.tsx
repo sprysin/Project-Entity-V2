@@ -8,7 +8,7 @@ import TurnControls from '../components/Game/TurnControls';
 import GameInfoBar from '../components/Game/GameInfoBar';
 import TributePopup from '../components/Game/TributePopup';
 import PhaseBanner from '../components/Game/PhaseBanner';
-import DamagePopup from '../components/Game/DamagePopup';
+import LifePointPopup from '../components/Game/LifePointPopup';
 import type { CardData } from '../types';
 import type { GamePhase } from '../types';
 
@@ -203,29 +203,35 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
     }, [gameState.currentPhase, nextPhase]);
 
     // Damage Popup State
-    const [damagePopups, setDamagePopups] = useState<{ id: number, amount: number, side: 'top' | 'bottom' }[]>([]);
+    const [lpPopups, setLpPopups] = useState<{ id: number, amount: number, type: 'damage' | 'gain' }[]>([]);
     const prevP1LP = useRef(800);
     const prevP2LP = useRef(800);
 
     // Track LP changes for animations
     useEffect(() => {
-        // Player 1 (Bottom) Damage
+        // Player 1 (Bottom) LP Changes
         if (p1.lp < prevP1LP.current) {
             const amount = prevP1LP.current - p1.lp;
-            setDamagePopups(prev => [...prev, { id: Date.now(), amount, side: 'bottom' }]);
+            setLpPopups(prev => [...prev, { id: Date.now(), amount, type: 'damage' }]);
+        } else if (p1.lp > prevP1LP.current) {
+            const amount = p1.lp - prevP1LP.current;
+            setLpPopups(prev => [...prev, { id: Date.now(), amount, type: 'gain' }]);
         }
         prevP1LP.current = p1.lp;
 
-        // Player 2 (Top) Damage
+        // Player 2 (Top) LP Changes
         if (p2.lp < prevP2LP.current) {
             const amount = prevP2LP.current - p2.lp;
-            setDamagePopups(prev => [...prev, { id: Date.now() + 1, amount, side: 'top' }]);
+            setLpPopups(prev => [...prev, { id: Date.now() + 1, amount, type: 'damage' }]);
+        } else if (p2.lp > prevP2LP.current) {
+            const amount = p2.lp - prevP2LP.current;
+            setLpPopups(prev => [...prev, { id: Date.now() + 1, amount, type: 'gain' }]);
         }
         prevP2LP.current = p2.lp;
     }, [p1.lp, p2.lp]);
 
     const removePopup = (id: number) => {
-        setDamagePopups(prev => prev.filter(p => p.id !== id));
+        setLpPopups(prev => prev.filter(p => p.id !== id));
     };
 
     // Attack Flow
@@ -282,12 +288,12 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                     isMirrorMode={isMirrorMode}
                 />
 
-                {/* Damage Popups */}
-                {damagePopups.map(popup => (
-                    <DamagePopup
+                {/* LifePoint Popups */}
+                {lpPopups.map(popup => (
+                    <LifePointPopup
                         key={popup.id}
                         amount={popup.amount}
-                        side={popup.side}
+                        type={popup.type}
                         onComplete={() => removePopup(popup.id)}
                     />
                 ))}

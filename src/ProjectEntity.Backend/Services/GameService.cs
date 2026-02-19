@@ -34,7 +34,6 @@ public class GameService
         var player = CurrentGame.Players[playerIndex];
         player.Deck = CreateRandomDeck(playerIndex);
         player.Hand = DrawCards(player.Deck, 5);
-        if (playerIndex == 0) player.Hand.Insert(0, new ProjectEntity.Core.Cards.Pawns.SolsticeSentinel().CreateInstance());
         player.LifePoints = 800;
         player.Field = new FieldState();
     }

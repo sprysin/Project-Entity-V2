@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
-interface DamagePopupProps {
+interface LifePointPopupProps {
     amount: number;
-    side: 'top' | 'bottom';
+    type: 'damage' | 'gain';
     onComplete: () => void;
 }
 
-const DamagePopup: React.FC<DamagePopupProps> = ({ amount, side, onComplete }) => {
+const LifePointPopup: React.FC<LifePointPopupProps> = ({ amount, type, onComplete }) => {
     const [visible, setVisible] = useState(true);
 
     useEffect(() => {
@@ -17,33 +17,35 @@ const DamagePopup: React.FC<DamagePopupProps> = ({ amount, side, onComplete }) =
         return () => clearTimeout(timer);
     }, [onComplete]);
 
+    const color = type === 'damage' ? '#ef4444' : '#22c55e';
+    const label = type === 'damage' ? `-${amount}` : `+${amount}`;
+
     return (
         <div style={{
             position: 'absolute',
-            [side === 'top' ? 'top' : 'bottom']: '80px', // Near LP bars
-            [side === 'top' ? 'left' : 'right']: '20%', // Offset slightly
-            transform: 'translateX(-50%)',
-            color: '#ef4444',
-            fontSize: '48px',
+            top: '50%',
+            left: '50%',
+            color: color,
+            fontSize: '84px',
             fontWeight: '900',
             fontFamily: 'var(--font-header)',
-            textShadow: '0 0 10px rgba(0,0,0,0.8), 2px 2px 0px rgba(0,0,0,1)',
+            textShadow: '0 0 30px rgba(0,0,0,0.9), 6px 6px 0px rgba(0,0,0,1)',
             pointerEvents: 'none',
-            zIndex: 100,
+            zIndex: 1000,
             opacity: visible ? 1 : 0,
-            transition: 'opacity 0.3s ease, transform 1.5s ease-out',
-            animation: 'floatUp 1.5s ease-out forwards',
+            transition: 'opacity 0.3s ease',
+            animation: 'floatUpAndCenter 1.5s ease-out forwards',
         }}>
-            -{amount}
+            {label}
             <style>{`
-                @keyframes floatUp {
-                    0% { transform: translateY(0) scale(0.8); opacity: 0; }
-                    10% { transform: translateY(-20px) scale(1.2); opacity: 1; }
-                    100% { transform: translateY(-80px) scale(1); opacity: 0; }
+                @keyframes floatUpAndCenter {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                    15% { transform: translate(-50%, -60%) scale(1.2); opacity: 1; }
+                    100% { transform: translate(-50%, -150%) scale(1); opacity: 0; }
                 }
             `}</style>
         </div>
     );
 };
 
-export default DamagePopup;
+export default LifePointPopup;
