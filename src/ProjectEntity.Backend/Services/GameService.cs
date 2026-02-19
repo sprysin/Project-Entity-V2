@@ -43,7 +43,7 @@ public class GameService
         var allCards = _cardDatabase.GetAllCards().ToList();
         var deck = new List<Card>();
         var random = new Random();
-        for (int i = 0; i < 35; i++)
+        for (int i = 0; i < 40; i++)
         {
             var cardTemplate = allCards[random.Next(allCards.Count)];
             var instance = cardTemplate.CreateInstance();

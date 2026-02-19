@@ -75,15 +75,7 @@ const PlayerField: React.FC<PlayerFieldProps> = ({
                         key={`entity-${i}`}
                         type="entity"
                         owner={isOpponent ? 'opponent' : 'active'}
-                        card={z ? {
-                            name: z.name,
-                            effectText: z.effectText,
-                            atk: z.attack ?? 0,
-                            def: z.defense ?? 0,
-                            cardType: 'entity',
-                            isHidden: z.isFaceDown,
-                            isDefense: z.currentPosition === 'Defense' || z.isFaceDown,
-                        } : null}
+                        card={z}
                         isSelected={selectedFieldSlot?.type === 'entity' && selectedFieldSlot?.index === i}
                         isSelectable={isZoneSelectable('entity', i)}
                         isTributeSelected={tributeSelection.includes(i)}
@@ -110,12 +102,7 @@ const PlayerField: React.FC<PlayerFieldProps> = ({
                         key={`action-${i}`}
                         type="action"
                         owner={isOpponent ? 'opponent' : 'active'}
-                        card={z ? {
-                            name: z.name,
-                            effectText: z.effectText,
-                            cardType: z.type === 'Condition' ? 'condition' : 'action',
-                            isHidden: z.isFaceDown,
-                        } : null}
+                        card={z}
                         isSelected={selectedFieldSlot?.type === 'action' && selectedFieldSlot?.index === i}
                         isSelectable={isZoneSelectable('action', i)}
                         isDropTarget={isDropTarget('action', i)}

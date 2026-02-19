@@ -327,6 +327,9 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
                     <div style={{ opacity: 0.9 }}>
                         <PlayerField
                             isOpponent={true}
+                            deckCount={p2.deck.length}
+                            discardCount={p2.discard.length}
+                            voidCount={p2.void.length}
                             entityZones={p2.field.pawns}
                             actionZones={p2.field.utility}
                             onDiscardClick={() => setViewingPile('discard')}
@@ -356,6 +359,9 @@ const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
 
                     <PlayerField
                         isOpponent={false}
+                        deckCount={p1.deck.length}
+                        discardCount={p1.discard.length}
+                        voidCount={p1.void.length}
                         entityZones={p1.field.pawns}
                         actionZones={p1.field.utility}
                         tributeSelection={tributeSelection}
