@@ -1,440 +1,411 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import PlayerField from '../components/Game/PlayerField';
 import Hand from '../components/Game/Hand';
-import PawnCard from '../components/PawnCard';
-import UtilityCard from '../components/UtilityCard';
 import { PileViewerModal } from '../components/Game/Pile';
-import { GAME_CARDS } from '../data/cards';
+import { useGameState, getTributesRequired } from '../hooks/useGameState';
+import GameSidebar from '../components/Game/GameSidebar';
+import TurnControls from '../components/Game/TurnControls';
+import GameInfoBar from '../components/Game/GameInfoBar';
+import TributePopup from '../components/Game/TributePopup';
+import PhaseBanner from '../components/Game/PhaseBanner';
+import DamagePopup from '../components/Game/DamagePopup';
 import type { CardData } from '../types';
+import type { GamePhase } from '../types';
+
 
 interface GameFieldProps {
     gameMode?: 'mirror' | 'solo';
     onExit: () => void;
 }
 
-// Mock game log entries
-const INITIAL_LOG = [
-    'Duel Initialized.',
-    'Player 1 draws 5 cards.',
-    'Player 2 draws 5 cards.',
-    'Turn 1 begins.',
-];
-
-const PHASES = ['MAIN 1', 'BATTLE', 'MAIN 2', 'END'];
-
-// Sidebar card scale: sidebar is 320px wide, card is 59mm (~223px). Scale to ~260px wide.
-const SIDEBAR_CARD_SCALE = 260 / 223;
+type InteractionMode = 'IDLE' | 'SELECT_ZONE_SUMMON' | 'SELECT_ZONE_SET_PAWN' | 'SELECT_ZONE_SET_UTILITY' | 'SELECT_TARGET' | 'SELECT_TRIBUTE';
 
 const GameField: React.FC<GameFieldProps> = ({ gameMode = 'solo', onExit }) => {
-    const [turn, setTurn] = useState(1);
-    const [phaseIndex, setPhaseIndex] = useState(0);
-    const [p1LP] = useState(800);
-    const [p2LP] = useState(800);
-    const [log] = useState<string[]>(INITIAL_LOG);
+    const {
+        gameState, initializeGame, nextPhase, summonPawn, setCard,
+        activateCard, declareAttack, resolveActivation, error
+    } = useGameState();
+
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // Selection State
     const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
+    const [selectedFieldSlot, setSelectedFieldSlot] = useState<{ player: number, slot: number, type: 'pawn' | 'utility' } | null>(null);
+    const [interactionMode, setInteractionMode] = useState<InteractionMode>('IDLE');
+    const [tributeSelection, setTributeSelection] = useState<number[]>([]);
 
-    // Mock hand — same cards as Hand.tsx uses
-    const mockHand: CardData[] = GAME_CARDS.slice(0, 5);
-    const selectedCard = selectedHandIndex !== null ? mockHand[selectedHandIndex] : null;
+    // Phase banner
+    const [phaseBanner, setPhaseBanner] = useState<{ oldPhase: GamePhase | null, newPhase: GamePhase } | null>(null);
+    const prevPhaseRef = useRef<GamePhase | null>(null);
 
-    // Pile data — empty by default, populated by game state in a real game
-    const mockDiscard: CardData[] = [];
-    const mockVoid: CardData[] = [];
-
-    // Pile viewer state: null = closed, 'discard' | 'void' = open
+    // Pile viewer
     const [viewingPile, setViewingPile] = useState<'discard' | 'void' | null>(null);
 
-    const currentPhase = PHASES[phaseIndex];
+    // Initialize
+    useEffect(() => { initializeGame(); }, [initializeGame]);
 
-    const handleNextPhase = () => {
-        if (phaseIndex < PHASES.length - 1) {
-            setPhaseIndex(p => p + 1);
+    // Phase change detection → trigger banner
+    useEffect(() => {
+        if (gameState.players.length === 0) return; // Not initialized
+        const currentPhase = gameState.currentPhase;
+        if (prevPhaseRef.current !== null && prevPhaseRef.current !== currentPhase) {
+            setPhaseBanner({ oldPhase: prevPhaseRef.current, newPhase: currentPhase });
+        }
+        prevPhaseRef.current = currentPhase;
+    }, [gameState.currentPhase, gameState.players.length]);
+
+    // Activation linger timeout
+    useEffect(() => {
+        if (gameState.activatingCard) {
+            const timer = setTimeout(() => {
+                resolveActivation();
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState.activatingCard, resolveActivation]);
+
+    // Derived State
+    const activePlayerIndex = gameState.activePlayerIndex;
+    const isMirrorMode = gameMode === 'mirror';
+    const bottomPlayerIndex = isMirrorMode ? activePlayerIndex : 0;
+    const topPlayerIndex = bottomPlayerIndex === 0 ? 1 : 0;
+
+    // Safety check for players array
+    const EMPTY_PLAYER = { hand: [], field: { pawns: Array(5).fill(null), utility: Array(5).fill(null) }, lp: 800, deck: [], discard: [], void: [] };
+    const p1 = gameState.players[bottomPlayerIndex] || EMPTY_PLAYER;
+    const p2 = gameState.players[topPlayerIndex] || EMPTY_PLAYER;
+
+    // Resolve Selected Card for Sidebar
+    let selectedCard: CardData | null = null;
+    if (selectedHandIndex !== null) {
+        selectedCard = p1.hand[selectedHandIndex];
+    } else if (selectedFieldSlot) {
+        const p = gameState.players[selectedFieldSlot.player];
+        if (p) {
+            if (selectedFieldSlot.type === 'pawn') selectedCard = p.field.pawns[selectedFieldSlot.slot];
+            else selectedCard = p.field.utility[selectedFieldSlot.slot];
+        }
+    }
+
+    // Should show tribute popup?
+    const showTributePopup = selectedHandIndex !== null
+        && selectedCard?.cardFamily === 'Pawn'
+        && getTributesRequired(selectedCard.level ?? 1) > 0;
+
+    // Handlers
+    const handleHandCardClick = (index: number) => {
+        if (interactionMode !== 'IDLE' && interactionMode !== 'SELECT_TRIBUTE') {
+            setInteractionMode('IDLE');
+            setTributeSelection([]);
+        }
+        setSelectedHandIndex(index);
+        setSelectedFieldSlot(null);
+    };
+
+    const handleFieldSlotClick = (playerIndex: number, slotIndex: number, type: 'pawn' | 'utility') => {
+        // Summon/Set zone selection
+        if (interactionMode === 'SELECT_ZONE_SUMMON' || interactionMode === 'SELECT_ZONE_SET_PAWN') {
+            if (playerIndex === bottomPlayerIndex && type === 'pawn' && selectedHandIndex !== null) {
+                summonPawn(selectedHandIndex, slotIndex, interactionMode === 'SELECT_ZONE_SET_PAWN', tributeSelection);
+                setInteractionMode('IDLE');
+                setSelectedHandIndex(null);
+                setTributeSelection([]);
+                return;
+            }
+        }
+        if (interactionMode === 'SELECT_ZONE_SET_UTILITY') {
+            if (playerIndex === bottomPlayerIndex && type === 'utility' && selectedHandIndex !== null) {
+                setCard(selectedHandIndex, slotIndex);
+                setInteractionMode('IDLE');
+                setSelectedHandIndex(null);
+                return;
+            }
+        }
+        if (interactionMode === 'SELECT_TARGET') {
+            if (playerIndex !== bottomPlayerIndex && type === 'pawn' && selectedFieldSlot?.type === 'pawn') {
+                declareAttack(selectedFieldSlot.slot, slotIndex, false);
+                setInteractionMode('IDLE');
+                return;
+            }
+        }
+
+        // Tribute Selection
+        if (interactionMode === 'SELECT_TRIBUTE') {
+            if (playerIndex === bottomPlayerIndex && type === 'pawn') {
+                if (tributeSelection.includes(slotIndex)) {
+                    setTributeSelection(prev => prev.filter(i => i !== slotIndex));
+                } else {
+                    setTributeSelection(prev => [...prev, slotIndex]);
+                }
+                return;
+            }
+        }
+
+        // Selection Logic
+        setSelectedFieldSlot({ player: playerIndex, slot: slotIndex, type });
+        setSelectedHandIndex(null);
+        if (interactionMode !== 'SELECT_TRIBUTE') {
+            setInteractionMode('IDLE');
+            setTributeSelection([]);
+        }
+    };
+
+    // Sidebar Actions
+    const onSummonRequest = (isHidden: boolean) => {
+        setInteractionMode(isHidden ? 'SELECT_ZONE_SET_PAWN' : 'SELECT_ZONE_SUMMON');
+    };
+
+    const onSetRequest = () => {
+        setInteractionMode('SELECT_ZONE_SET_UTILITY');
+    };
+
+    const onActivateFromHand = () => {
+        if (selectedHandIndex !== null) {
+            activateCard('hand', selectedHandIndex);
+            setSelectedHandIndex(null);
+        }
+    };
+
+    const onActivateFromField = () => {
+        if (selectedFieldSlot && selectedFieldSlot.type === 'utility') {
+            activateCard('field', selectedFieldSlot.slot);
+            setSelectedFieldSlot(null);
+        }
+    };
+
+    // Tribute Flow
+    const onStartTribute = () => {
+        setTributeSelection([]);
+        setInteractionMode('SELECT_TRIBUTE');
+    };
+
+    const onConfirmTributeSummon = () => {
+        // Now enter zone selection — user picks where to put the summoned pawn
+        setInteractionMode('SELECT_ZONE_SUMMON');
+    };
+
+    const onCancelTribute = () => {
+        setInteractionMode('IDLE');
+        setTributeSelection([]);
+    };
+
+    const handlePhaseBannerComplete = useCallback(() => {
+        setPhaseBanner(null);
+
+        // Auto-advance through non-interactive phases
+        const autoPhases = ['Draw', 'Standby', 'End'];
+        if (autoPhases.includes(gameState.currentPhase)) {
+            // Brief delay before auto-advancing so the phase is visible
+            setTimeout(() => {
+                nextPhase();
+            }, 300);
+        }
+    }, [gameState.currentPhase, nextPhase]);
+
+    // Damage Popup State
+    const [damagePopups, setDamagePopups] = useState<{ id: number, amount: number, side: 'top' | 'bottom' }[]>([]);
+    const prevP1LP = useRef(800);
+    const prevP2LP = useRef(800);
+
+    // Track LP changes for animations
+    useEffect(() => {
+        // Player 1 (Bottom) Damage
+        if (p1.lp < prevP1LP.current) {
+            const amount = prevP1LP.current - p1.lp;
+            setDamagePopups(prev => [...prev, { id: Date.now(), amount, side: 'bottom' }]);
+        }
+        prevP1LP.current = p1.lp;
+
+        // Player 2 (Top) Damage
+        if (p2.lp < prevP2LP.current) {
+            const amount = prevP2LP.current - p2.lp;
+            setDamagePopups(prev => [...prev, { id: Date.now() + 1, amount, side: 'top' }]);
+        }
+        prevP2LP.current = p2.lp;
+    }, [p1.lp, p2.lp]);
+
+    const removePopup = (id: number) => {
+        setDamagePopups(prev => prev.filter(p => p.id !== id));
+    };
+
+    // Attack Flow
+    const onAttack = () => {
+        // Check if opponent has pawns
+        const opponentHasPawns = p2.field.pawns.some(p => p !== null);
+
+        if (opponentHasPawns) {
+            // Enter target selection mode
+            setInteractionMode('SELECT_TARGET');
         } else {
-            setPhaseIndex(0);
-            setTurn(t => t + 1);
+            // Direct Attack
+            if (activePlayerIndex === bottomPlayerIndex && selectedFieldSlot?.type === 'pawn') {
+                declareAttack(selectedFieldSlot.slot, -1, true); // -1 for direct attack
+                setSelectedFieldSlot(null);
+            }
         }
     };
 
     return (
-        <div
-            className="retro-hash"
-            style={{
-                display: 'flex',
-                height: '100vh',
-                width: '100vw',
-                backgroundColor: '#050505',
-                color: 'white',
-                position: 'relative',
-                overflow: 'hidden',
-                userSelect: 'none',
-            }}
-        >
-            {/* ── MAIN PLAY AREA ── */}
+        <div className="retro-hash" style={{
+            display: 'flex', height: '100vh', width: '100vw',
+            backgroundColor: activePlayerIndex === 0 ? '#050505' : '#e2e8f0',
+            color: activePlayerIndex === 0 ? 'white' : 'black',
+            transition: 'background-color 0.5s ease, color 0.5s ease',
+            position: 'relative', overflow: 'hidden', userSelect: 'none',
+        }}>
+            {/* Main Area */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
 
-                {/* EXIT BUTTON */}
+                {/* Exit Btn */}
                 <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 40 }}>
-                    <button
-                        onClick={onExit}
-                        style={{
-                            padding: '8px 16px',
-                            background: 'rgba(15, 23, 42, 0.8)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#94a3b8',
-                            fontFamily: 'var(--font-header)',
-                            fontWeight: 'bold',
-                            fontSize: '11px',
-                            letterSpacing: '3px',
-                            backdropFilter: 'blur(12px)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = 'rgba(127, 29, 29, 0.8)';
-                            e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = 'rgba(15, 23, 42, 0.8)';
-                            e.currentTarget.style.color = '#94a3b8';
-                        }}
-                    >
-                        EXIT GAME
-                    </button>
+                    <button onClick={onExit} style={{
+                        padding: '8px 16px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8',
+                        fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px', letterSpacing: '3px', backdropFilter: 'blur(12px)', cursor: 'pointer'
+                    }}>EXIT GAME</button>
                 </div>
 
-                {/* PHASE / TURN CONTROLS (right side, vertically centered) */}
-                <div style={{
-                    position: 'absolute',
-                    right: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: '8px',
-                    zIndex: 30,
-                }}>
-                    {/* Turn info */}
+                {error && (
                     <div style={{
-                        background: 'rgba(0,0,0,0.8)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        padding: '8px 16px',
-                        backdropFilter: 'blur(12px)',
-                        textAlign: 'right',
+                        position: 'absolute', top: '60px', left: '50%', transform: 'translateX(-50%)',
+                        background: 'rgba(220, 38, 38, 0.9)', color: 'white', padding: '8px 16px', borderRadius: '4px',
+                        zIndex: 100, border: '1px solid #ef4444'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
-                            <span style={{ fontSize: '9px', fontFamily: 'var(--font-header)', color: '#64748b', letterSpacing: '3px' }}>TURN</span>
-                            <span style={{ fontSize: '20px', fontFamily: 'var(--font-header)', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>{turn}</span>
-                        </div>
-                        <div style={{ fontSize: '9px', fontFamily: 'var(--font-header)', fontWeight: 'bold', color: '#FFD700', letterSpacing: '2px', marginTop: '4px' }}>
-                            PLAYER 1'S TURN
-                        </div>
+                        Error: {error}
                     </div>
+                )}
 
-                    {/* Next Phase button */}
-                    <button
-                        onClick={handleNextPhase}
-                        style={{
-                            padding: '8px 16px',
-                            background: '#ca8a04',
-                            border: 'none',
-                            color: 'white',
-                            fontFamily: 'var(--font-header)',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            boxShadow: '0 4px 20px rgba(202,138,4,0.3)',
-                            transition: 'background 0.2s ease',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#eab308')}
-                        onMouseLeave={e => (e.currentTarget.style.background = '#ca8a04')}
-                    >
-                        <span style={{ fontSize: '14px', letterSpacing: '1px', whiteSpace: 'nowrap', lineHeight: 1 }}>NEXT PHASE</span>
-                        <span style={{ fontSize: '9px', opacity: 0.9, letterSpacing: '2px', fontStyle: 'italic', marginTop: '2px' }}>({currentPhase})</span>
-                    </button>
-                </div>
+                <TurnControls
+                    turn={gameState.turnCount}
+                    activePlayer={gameState.activePlayerIndex}
+                    currentPhase={gameState.currentPhase}
+                    onNextPhase={nextPhase}
+                    isMirrorMode={isMirrorMode}
+                />
 
-                {/* ── FIELD CONTENT (centered column) ── */}
-                <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    paddingTop: '60px',
-                    paddingBottom: '80px',
-                }}>
+                {/* Damage Popups */}
+                {damagePopups.map(popup => (
+                    <DamagePopup
+                        key={popup.id}
+                        amount={popup.amount}
+                        side={popup.side}
+                        onComplete={() => removePopup(popup.id)}
+                    />
+                ))}
 
-                    {/* OPPONENT HAND (absolute top, card backs) */}
-                    <Hand isOpponent={true} />
+                {/* Tribute Popup — below turn controls */}
+                {showTributePopup && selectedCard && (
+                    <div style={{
+                        position: 'absolute',
+                        right: '16px',
+                        top: 'calc(50% + 60px)',
+                        zIndex: 35,
+                        width: '220px',
+                    }}>
+                        <TributePopup
+                            card={selectedCard}
+                            player={p1}
+                            tributeSelection={tributeSelection}
+                            onStartTribute={onStartTribute}
+                            onConfirmSummon={onConfirmTributeSummon}
+                            onCancel={onCancelTribute}
+                            isTributeMode={interactionMode === 'SELECT_TRIBUTE'}
+                        />
+                    </div>
+                )}
 
-                    {/* OPPONENT FIELD */}
+                {/* Field Layout */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', paddingTop: '60px', paddingBottom: '80px' }}>
+
+                    <Hand isOpponent={true} cards={p2.hand} />
+
                     <div style={{ opacity: 0.9 }}>
                         <PlayerField
                             isOpponent={true}
+                            entityZones={p2.field.pawns}
+                            actionZones={p2.field.utility}
                             onDiscardClick={() => setViewingPile('discard')}
                             onVoidClick={() => setViewingPile('void')}
+                            onEntityZoneClick={(i) => {
+                                // If selecting target for attack
+                                if (interactionMode === 'SELECT_TARGET') {
+                                    handleFieldSlotClick(topPlayerIndex, i, 'pawn');
+                                } else {
+                                    handleFieldSlotClick(topPlayerIndex, i, 'pawn');
+                                }
+                            }}
+                            onActionZoneClick={(i) => handleFieldSlotClick(topPlayerIndex, i, 'utility')}
+                            selectableZones={
+                                interactionMode === 'SELECT_TARGET'
+                                    ? p2.field.pawns.map((p, i) => p ? { type: 'entity', index: i } : null).filter(Boolean) as any
+                                    : []
+                            }
                         />
                     </div>
 
-                    {/* ── LP BAR (center divider) ── */}
-                    <div style={{
-                        width: '100%',
-                        maxWidth: '900px',
-                        height: '32px',
-                        background: 'rgba(0,0,0,0.6)',
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)',
-                        backdropFilter: 'blur(12px)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0 64px',
-                        margin: '8px 0',
-                        position: 'relative',
-                        zIndex: 0,
-                        boxSizing: 'border-box',
-                    }}>
-                        {/* Opponent LP (left) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{ fontSize: '9px', fontFamily: 'var(--font-header)', fontWeight: 'bold', color: '#64748b', letterSpacing: '3px', textTransform: 'uppercase' }}>PLAYER 2</span>
-                            <span style={{ fontSize: '20px', fontFamily: 'var(--font-header)', fontWeight: 'black', color: 'white' }}>{p2LP} LP</span>
-                        </div>
-
-                        {/* Center gradient line */}
-                        <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent)', margin: '0 32px' }} />
-
-                        {/* Player LP (right) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{ fontSize: '20px', fontFamily: 'var(--font-header)', fontWeight: 'black', color: 'white' }}>{p1LP} LP</span>
-                            <span style={{ fontSize: '9px', fontFamily: 'var(--font-header)', fontWeight: 'bold', color: '#64748b', letterSpacing: '3px', textTransform: 'uppercase' }}>PLAYER 1</span>
-                        </div>
-                    </div>
-
-                    {/* PLAYER FIELD */}
-                    <PlayerField
-                        isOpponent={false}
-                        onDiscardClick={() => setViewingPile('discard')}
-                        onVoidClick={() => setViewingPile('void')}
+                    <GameInfoBar
+                        p1LP={p1.lp} p2LP={p2.lp}
+                        topPlayerIndex={topPlayerIndex} bottomPlayerIndex={bottomPlayerIndex}
+                        activePlayerIndex={activePlayerIndex}
                     />
 
+                    <PlayerField
+                        isOpponent={false}
+                        entityZones={p1.field.pawns}
+                        actionZones={p1.field.utility}
+                        tributeSelection={tributeSelection}
+                        onDiscardClick={() => setViewingPile('discard')}
+                        onVoidClick={() => setViewingPile('void')}
+                        onEntityZoneClick={(i) => handleFieldSlotClick(bottomPlayerIndex, i, 'pawn')}
+                        onActionZoneClick={(i) => handleFieldSlotClick(bottomPlayerIndex, i, 'utility')}
+                        selectableZones={
+                            interactionMode === 'SELECT_ZONE_SUMMON' || interactionMode === 'SELECT_ZONE_SET_PAWN'
+                                ? p1.field.pawns.map((p, i) => !p ? { type: 'entity', index: i } : null).filter(Boolean) as any
+                                : interactionMode === 'SELECT_ZONE_SET_UTILITY'
+                                    ? p1.field.utility.map((p, i) => !p ? { type: 'action', index: i } : null).filter(Boolean) as any
+                                    : []
+                        }
+                    />
                 </div>
 
-                {/* PLAYER HAND (absolute bottom, peeking up) */}
                 <Hand
-                    isOpponent={false}
+                    isOpponent={false} cards={p1.hand}
                     selectedHandIndex={selectedHandIndex}
-                    onCardClick={(i) => setSelectedHandIndex(prev => prev === i ? null : i)}
+                    onCardClick={handleHandCardClick}
                 />
-
             </div>
 
-            {/* ── PILE VIEWER MODAL ── */}
-            {viewingPile === 'discard' && (
+            <GameSidebar
+                isOpen={isSidebarOpen}
+                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                selectedCard={selectedCard}
+                activePlayerIndex={activePlayerIndex}
+                onSummon={onSummonRequest}
+                onActivateFromHand={onActivateFromHand}
+                onActivateFromField={onActivateFromField}
+                onSet={onSetRequest}
+                onAttack={onAttack}
+                interactionContext={selectedHandIndex !== null ? 'hand' : selectedFieldSlot && selectedFieldSlot.player === bottomPlayerIndex ? 'field' : null}
+                currentTurn={gameState.turnCount}
+                currentPhase={gameState.currentPhase}
+            />
+
+            {viewingPile && (
                 <PileViewerModal
-                    title="Discard Pile"
-                    cards={mockDiscard}
-                    type="discard"
+                    title={viewingPile === 'discard' ? "Discard Pile" : "Void"}
+                    cards={viewingPile === 'discard' ? p1.discard : p1.void}
+                    type={viewingPile}
                     onClose={() => setViewingPile(null)}
                 />
             )}
-            {viewingPile === 'void' && (
-                <PileViewerModal
-                    title="Void"
-                    cards={mockVoid}
-                    type="void"
-                    onClose={() => setViewingPile(null)}
+
+            {/* Phase Banner Overlay */}
+            {phaseBanner && (
+                <PhaseBanner
+                    oldPhase={phaseBanner.oldPhase}
+                    newPhase={phaseBanner.newPhase}
+                    onComplete={handlePhaseBannerComplete}
                 />
             )}
-
-            {/* ── RIGHT SIDEBAR ── */}
-            <div style={{
-                width: isSidebarOpen ? '320px' : '40px',
-                transition: 'width 0.3s ease',
-                borderLeft: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(0,0,0,0.8)',
-                backdropFilter: 'blur(24px)',
-                zIndex: 40,
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                flexShrink: 0,
-            }}>
-                {/* Toggle tab */}
-                <button
-                    onClick={() => setIsSidebarOpen(o => !o)}
-                    style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '-12px',
-                        transform: 'translateY(-50%)',
-                        width: '24px',
-                        height: '48px',
-                        background: '#ca8a04',
-                        border: '1px solid #FFD700',
-                        borderRight: 'none',
-                        borderRadius: '4px 0 0 4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        color: 'black',
-                        fontWeight: 'bold',
-                        fontSize: '12px',
-                        zIndex: 50,
-                        padding: 0,
-                        boxShadow: '-4px 0 12px rgba(0,0,0,0.5)',
-                        transition: 'background 0.2s ease',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#eab308')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#ca8a04')}
-                >
-                    {isSidebarOpen ? '›' : '‹'}
-                </button>
-
-                {isSidebarOpen ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        {/* Card Detail Panel */}
-                        <div style={{ padding: '16px', paddingBottom: '8px', flexShrink: 0 }}>
-                            {selectedCard ? (
-                                // Selected card — render actual PawnCard / UtilityCard
-                                <div style={{ animation: 'fadeIn 0.3s' }}>
-                                    {/* Card scaled to fit sidebar width */}
-                                    <div style={{
-                                        transformOrigin: 'top center',
-                                        transform: `scale(${SIDEBAR_CARD_SCALE})`,
-                                        // Compensate height so the container doesn't leave a gap
-                                        marginBottom: `${Math.round(325 * SIDEBAR_CARD_SCALE - 325)}px`,
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                    }}>
-                                        {selectedCard.cardFamily === 'Pawn' ? (
-                                            <PawnCard
-                                                name={selectedCard.name}
-                                                level={selectedCard.level}
-                                                attribute={selectedCard.attribute}
-                                                pawnType={selectedCard.pawnType}
-                                                effectText={selectedCard.effectText}
-                                                attack={selectedCard.attack}
-                                                defense={selectedCard.defense}
-                                            />
-                                        ) : (
-                                            <UtilityCard
-                                                name={selectedCard.name}
-                                                type={selectedCard.type}
-                                                subType={selectedCard.subType}
-                                                effectText={selectedCard.effectText}
-                                            />
-                                        )}
-                                    </div>
-                                    {/* Action buttons — dynamic based on card type */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '90px' }}>
-                                        {selectedCard.cardFamily === 'Pawn' ? (
-                                            <>
-                                                <button style={{
-                                                    width: '100%', padding: '12px',
-                                                    background: '#ca8a04', border: 'none', color: 'white',
-                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                                    letterSpacing: '2px', cursor: 'pointer',
-                                                    borderBottom: '4px solid #92400e',
-                                                    transition: 'all 0.1s ease',
-                                                }}
-                                                    onMouseEnter={e => (e.currentTarget.style.background = '#eab308')}
-                                                    onMouseLeave={e => (e.currentTarget.style.background = '#ca8a04')}
-                                                >
-                                                    {selectedCard.level >= 5 ? 'TRIBUTE SUMMON' : 'NORMAL SUMMON'}
-                                                </button>
-                                                <button style={{
-                                                    width: '100%', padding: '12px',
-                                                    background: 'rgba(30,41,59,1)', border: '1px solid rgba(255,255,255,0.2)', color: '#cbd5e1',
-                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                                    letterSpacing: '2px', cursor: 'pointer',
-                                                }}>SET HIDDEN</button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                {selectedCard.type !== 'Condition' && (
-                                                    <button style={{
-                                                        width: '100%', padding: '12px',
-                                                        background: '#16a34a', border: 'none', color: 'white',
-                                                        fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                                        letterSpacing: '2px', cursor: 'pointer',
-                                                        borderBottom: '4px solid #14532d',
-                                                        transition: 'all 0.1s ease',
-                                                    }}
-                                                        onMouseEnter={e => (e.currentTarget.style.background = '#22c55e')}
-                                                        onMouseLeave={e => (e.currentTarget.style.background = '#16a34a')}
-                                                    >ACTIVATE ACTION</button>
-                                                )}
-                                                <button style={{
-                                                    width: '100%', padding: '12px',
-                                                    background: 'rgba(30,41,59,1)', border: '1px solid rgba(255,255,255,0.2)', color: '#cbd5e1',
-                                                    fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '11px',
-                                                    letterSpacing: '2px', cursor: 'pointer',
-                                                }}>SET CARD</button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                // Empty state
-                                <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.3, gap: '16px' }}>
-                                    <div style={{ width: '64px', height: '64px', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="rgba(100,116,139,1)">
-                                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,7V9H13V7H11M11,11V17H13V11H11Z" />
-                                        </svg>
-                                    </div>
-                                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-header)', letterSpacing: '3px', color: '#475569', textAlign: 'center' }}>SELECT CARD TO VIEW...</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* System Log */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 24px 24px', overflow: 'hidden', marginTop: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="#FFD700">
-                                    <path d="M7,5H21V7H7V5M7,13V11H21V13H7M4,4.5A1.5,1.5 0 0,1 5.5,6A1.5,1.5 0 0,1 4,7.5A1.5,1.5 0 0,1 2.5,6A1.5,1.5 0 0,1 4,4.5M4,10.5A1.5,1.5 0 0,1 5.5,12A1.5,1.5 0 0,1 4,13.5A1.5,1.5 0 0,1 2.5,12A1.5,1.5 0 0,1 4,10.5M7,19V17H21V19H7M4,16.5A1.5,1.5 0 0,1 5.5,18A1.5,1.5 0 0,1 4,19.5A1.5,1.5 0 0,1 2.5,18A1.5,1.5 0 0,1 4,16.5Z" />
-                                </svg>
-                                <span style={{ fontFamily: 'var(--font-header)', fontSize: '9px', fontWeight: 'bold', color: '#FFD700', letterSpacing: '3px' }}>SYSTEM LOG</span>
-                            </div>
-                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                {log.map((entry, i) => (
-                                    <div
-                                        key={i}
-                                        style={{
-                                            paddingLeft: '8px',
-                                            borderLeft: `2px solid ${i === 0 ? '#FFD700' : '#1e293b'}`,
-                                            paddingTop: '3px',
-                                            paddingBottom: '3px',
-                                            fontFamily: 'monospace',
-                                            fontSize: '10px',
-                                            color: i === 0 ? 'white' : '#475569',
-                                            background: i === 0 ? 'rgba(255,255,255,0.05)' : 'transparent',
-                                            transition: 'all 0.3s ease',
-                                        }}
-                                    >
-                                        {entry}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    // Collapsed sidebar
-                    <div
-                        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: 0.6 }}
-                        onClick={() => setIsSidebarOpen(true)}
-                    >
-                        <div style={{ transform: 'rotate(90deg)', whiteSpace: 'nowrap', fontFamily: 'var(--font-header)', fontWeight: 'bold', fontSize: '9px', letterSpacing: '3px', color: '#64748b' }}>
-                            System Data
-                        </div>
-                    </div>
-                )}
-            </div>
         </div>
     );
 };

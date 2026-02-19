@@ -22,20 +22,17 @@ public class ForceFireSparker : Pawn
     {
         public string Name => "Spark Burn";
 
-        public void Execute(object gameState, object source)
+        public void Execute(IGameContext context, object source)
         {
-            // Placeholder: Logic to count opponent's set Action/Condition cards
-            // int setCount = ((GameState)gameState).Opponent.Field.GetSetCards().Count(c => c is ActionCard || c is ConditionCard);
-            // hardcoded for simulation for now until GameState is fully connected
-            int setCount = 2; // Example: assume 2 set cards
+            // Deal 10 damage for each set Action/Condition on opponent's field
+            int opponent = context.GetOpponentIndex(context.ActivePlayerIndex);
+            int count = context.CountFieldCards(opponent, c => c.Type == CardType.Action || c.Type == CardType.Condition && c.IsFaceDown);
 
-            int damage = setCount * 10;
-
-            // Reusing the library effect
-            var damageEffect = new CardEffectLibrary.DamagePlayerEffect(damage);
-            damageEffect.Execute(gameState, source);
-
-            // Console.WriteLine($"[ForceFireSparker] Dealt {damage} damage for {setCount} set cards.");
+            int damage = count * 10;
+            if (damage > 0)
+            {
+                context.DamagePlayer(opponent, damage);
+            }
         }
     }
 }

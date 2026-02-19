@@ -259,18 +259,18 @@ export const PileViewerModal: React.FC<PileViewerModalProps> = ({ title, cards, 
                                 {card.cardFamily === 'Pawn' ? (
                                     <PawnCard
                                         name={card.name}
-                                        level={card.level}
-                                        attribute={card.attribute}
-                                        pawnType={card.pawnType}
+                                        level={card.level ?? 1}
+                                        attribute={(card.attribute as any) ?? 'Light'}
+                                        pawnType={card.pawnType ?? 'Warrior'}
                                         effectText={card.effectText}
-                                        attack={card.attack}
-                                        defense={card.defense}
+                                        attack={card.attack ?? 0}
+                                        defense={card.defense ?? 0}
                                     />
                                 ) : (
                                     <UtilityCard
                                         name={card.name}
-                                        type={card.type}
-                                        subType={card.subType}
+                                        type={(card.type as any) ?? 'Action'}
+                                        subType={(card.subType as any) ?? 'Normal'}
                                         effectText={card.effectText}
                                     />
                                 )}

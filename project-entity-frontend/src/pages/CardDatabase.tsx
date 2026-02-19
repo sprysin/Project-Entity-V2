@@ -23,8 +23,8 @@ const CardDatabase: React.FC<DatabaseProps> = ({ onNavigate }) => {
             <div className="card-database__grid">
                 {GAME_CARDS.map(card => (
                     card.cardFamily === 'Pawn'
-                        ? <PawnCard key={card.id} {...card} />
-                        : <UtilityCard key={card.id} {...card} />
+                        ? <PawnCard key={card.id} {...card} level={card.level ?? 1} attack={card.attack ?? 0} defense={card.defense ?? 0} attribute={(card.attribute as any) ?? 'Light'} pawnType={card.pawnType ?? 'Warrior'} />
+                        : <UtilityCard key={card.id} {...card} type={(card.type as any) ?? 'Action'} subType={(card.subType as any) ?? 'Normal'} />
                 ))}
             </div>
         </div>

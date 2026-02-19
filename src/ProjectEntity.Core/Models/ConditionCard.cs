@@ -14,4 +14,6 @@ public abstract class ConditionCard : Card
     {
         ConditionType = conditionType;
     }
+
+    protected ConditionCard() { }
 }

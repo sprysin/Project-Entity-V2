@@ -17,7 +17,7 @@ Inspired by classic "no-mana" systems, the game mainly gets card advantage throu
 ### Zones & Piles
 
 - **Deck:** Standard draw pile.
-- **Discard Pile (Graveyard):** For destroyed Pawns and used Actions.
+- **Discard Pile (Graveyard):** For destroyed or discarded Pawns and used Actions.
 - **The Void:** A stand-in for the "banish" pile. Rule: Any card sent to the Void is inaccessible for the remainder of the game.
 
 ## 2. Card Types & Anatomy
@@ -88,7 +88,7 @@ Conditions are reactive cards that must be waited before use. They have two dist
    - Unlimited Tribute/Special Summons.
    - Change Position: If Pawn was on field at start of turn.
    - Activate/Set Actions and Conditions.
-3. **Battle Phase (Optional):** Skipped on Turn 1. Direct attacks allowed only if opponent's Pawn Zones are empty.
+3. **Battle Phase:** Skipped on Turn 1. Direct attacks allowed only if opponent's Pawn Zones are empty.
 4. **Main Phase 2:** Accessible only if Battle Phase occurred.
 5. **End Phase:** Pass turn; resolve "End of Turn" effects.
 
@@ -106,6 +106,8 @@ Conditions are reactive cards that must be waited before use. They have two dist
 
 ## 6. Coding Assistance
 
-- **State Machine:** Track "turn set". Conditions cannot be toggled to 'Active' on the turn they are placed.
-- **Visuals:** Pawns (Gold), Actions (Green), Conditions (Pink/Purple).
+- **State of cards:** Track "turn set". Conditions cannot be toggled to 'Active' on the turn they are placed.
+- **First Turn Flag:** Ensure the canBattle flag is false for the duration of the first turn of the match.
+- **Automation Logic:** The AI should implement a "State Observer." When phase == DRAW and hasDrawn == true, change state to STANDBY -> MAIN_1 without user input.
+- **Visuals:** Pawns (Gold), Actions (Green), Conditions (Pink).
 - **Metadata Display:** Show ATTRIBUTE, TYPE, LEVEL and EFFECT on Pawn cards.

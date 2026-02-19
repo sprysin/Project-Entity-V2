@@ -1,6 +1,7 @@
 import React from 'react';
 import Zone from './Zone';
 import { Pile, DeckPile } from './Pile';
+import type { CardData } from '../../types';
 
 interface PlayerFieldProps {
     isOpponent?: boolean;
@@ -11,8 +12,8 @@ interface PlayerFieldProps {
     discardFlash?: boolean;
     voidFlash?: boolean;
     // Zone data
-    entityZones?: (any | null)[];
-    actionZones?: (any | null)[];
+    entityZones?: (CardData | null)[];
+    actionZones?: (CardData | null)[];
     // Callbacks
     onDiscardClick?: () => void;
     onVoidClick?: () => void;
@@ -33,14 +34,6 @@ interface PlayerFieldProps {
 
 /**
  * PlayerField — renders one player's side of the field.
- *
- * Reference layout (active player, bottom half):
- *   Row 1: [Entity × 5]  [Discard] [Void]
- *   Row 2: [Action × 5]  [Deck]
- *
- * For opponent (top half), rows are reversed:
- *   Row 1: [Action × 5]  [Deck]
- *   Row 2: [Entity × 5]  [Discard] [Void]
  */
 const PlayerField: React.FC<PlayerFieldProps> = ({
     isOpponent = false,
@@ -83,13 +76,13 @@ const PlayerField: React.FC<PlayerFieldProps> = ({
                         type="entity"
                         owner={isOpponent ? 'opponent' : 'active'}
                         card={z ? {
-                            name: z.card?.name ?? '',
-                            effectText: z.card?.effectText,
-                            atk: z.card?.atk,
-                            def: z.card?.def,
+                            name: z.name,
+                            effectText: z.effectText,
+                            atk: z.attack ?? 0,
+                            def: z.defense ?? 0,
                             cardType: 'entity',
-                            isHidden: z.position === 'hidden',
-                            isDefense: z.position === 'defense' || z.position === 'hidden',
+                            isHidden: z.isFaceDown,
+                            isDefense: z.currentPosition === 'Defense' || z.isFaceDown,
                         } : null}
                         isSelected={selectedFieldSlot?.type === 'entity' && selectedFieldSlot?.index === i}
                         isSelectable={isZoneSelectable('entity', i)}
@@ -118,10 +111,10 @@ const PlayerField: React.FC<PlayerFieldProps> = ({
                         type="action"
                         owner={isOpponent ? 'opponent' : 'active'}
                         card={z ? {
-                            name: z.card?.name ?? '',
-                            effectText: z.card?.effectText,
-                            cardType: z.card?.type === 'condition' ? 'condition' : 'action',
-                            isHidden: z.position === 'hidden',
+                            name: z.name,
+                            effectText: z.effectText,
+                            cardType: z.type === 'Condition' ? 'condition' : 'action',
+                            isHidden: z.isFaceDown,
                         } : null}
                         isSelected={selectedFieldSlot?.type === 'action' && selectedFieldSlot?.index === i}
                         isSelectable={isZoneSelectable('action', i)}

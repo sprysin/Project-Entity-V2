@@ -1,27 +1,82 @@
-﻿using System;
-using ProjectEntity.Core.Systems;
+﻿using ProjectEntity.Backend.Services;
+using Microsoft.AspNetCore.OpenApi;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using ProjectEntity.Core.Models;
 
-namespace ProjectEntity.Backend;
+var builder = WebApplication.CreateBuilder(args);
 
-class Program
-{
-    static void Main(string[] args)
+// Add services to the container.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
     {
-        Console.WriteLine("=== Project Entity Backend Service v1.0.0 ===");
-        
-        // Load Cards to ensure integrity
-        var database = new CardDatabase();
-        database.LoadCards();
-        
-        Console.WriteLine($"[System] Loaded {database.GetAllCards().Count()} cards into memory.");
-        Console.WriteLine("[System] Listening for client connections on Port 5000 (Simulated)...");
-        
-        // Prevent console from closing immediately
-        while (true)
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
+        // Enable polymorphic serialization for Card subtypes
+        // This ensures Pawn properties (level, attack, defense) are included
+        // when serializing from List<Card>
+        options.JsonSerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            var command = Console.ReadLine();
-            if (command == "exit") break;
-            if (command == "status") Console.WriteLine("[Status] Service Operational.");
-        }
-    }
+            Modifiers =
+            {
+                static typeInfo =>
+                {
+                    if (typeInfo.Type != typeof(Card)) return;
+
+                    // Find all concrete Card types in loaded assemblies
+                    var cardTypes = AppDomain.CurrentDomain.GetAssemblies()
+                        .SelectMany(a =>
+                        {
+                            try { return a.GetTypes(); }
+                            catch { return Array.Empty<Type>(); }
+                        })
+                        .Where(t => t.IsSubclassOf(typeof(Card)) && !t.IsAbstract)
+                        .ToList();
+
+                    typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
+                    {
+                        UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor
+                    };
+
+                    foreach (var ct in cardTypes)
+                    {
+                        typeInfo.PolymorphismOptions.DerivedTypes.Add(
+                            new JsonDerivedType(ct));
+                    }
+                }
+            }
+        };
+    });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Register Game Logic Service (Singleton state for now)
+builder.Services.AddSingleton<GameService>();
+
+// CORS for Frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.UseCors("AllowAll");
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();

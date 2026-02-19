@@ -38,7 +38,7 @@ export const GAME_CARDS: CardData[] = [
         "level": 5,
         "attribute": "Earth",
         "pawnType": "Warrior",
-        "effectText": "ON SUMMON: Target 1 face-up monster on the field; it loses 20 ATK.",
+        "effectText": "ON SUMMON: Target 1 face-up pawn on the field; it loses 20 ATK.",
         "attack": 170,
         "defense": 50
     },

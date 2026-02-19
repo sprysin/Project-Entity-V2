@@ -8,15 +8,11 @@ public static class CardEffectLibrary
 {
     private static Dictionary<string, IEffect> _effects = new();
 
-    static CardEffectLibrary()
-    {
-        // Initialize standard effects
-        RegisterEffect(new GainLifePointsEffect(100)); // Example reuse
-    }
+    // No static constructor needed if we use direct instantiation or explicit registration
+    // static CardEffectLibrary() { ... }
 
     public static void RegisterEffect(IEffect effect)
     {
-        // Simple registration by name for now, could use ID
         if (!_effects.ContainsKey(effect.Name))
         {
             _effects[effect.Name] = effect;
@@ -33,7 +29,6 @@ public static class CardEffectLibrary
     public class GainLifePointsEffect : IEffect
     {
         public string Name => $"Gain {_amount} Life Points";
-
         private int _amount;
 
         public GainLifePointsEffect(int amount)
@@ -41,10 +36,10 @@ public static class CardEffectLibrary
             _amount = amount;
         }
 
-        public void Execute(object gameState, object source)
+        public void Execute(IGameContext context, object source)
         {
-            // debug: Console.WriteLine($"[Effect] Player gains {_amount} Life Points.");
-            // Logic to actually add LP to player in GameState would go here
+            // Apply to Active Player
+            context.ModifyPlayerLifePoints(context.ActivePlayerIndex, _amount);
         }
 
     }
@@ -57,12 +52,12 @@ public static class CardEffectLibrary
         public DamagePlayerEffect(int damage)
         {
             _damage = damage;
-            CardEffectLibrary.RegisterEffect(this);
         }
 
-        public void Execute(object gameState, object source)
+        public void Execute(IGameContext context, object source)
         {
-            // debug: Console.WriteLine($"[Effect] Deal {_damage} damage to opponent.");
+            int opponent = context.GetOpponentIndex(context.ActivePlayerIndex);
+            context.DamagePlayer(opponent, _damage);
         }
     }
 
@@ -76,12 +71,12 @@ public static class CardEffectLibrary
         {
             _amount = amount;
             _statName = statName;
-            CardEffectLibrary.RegisterEffect(this);
         }
 
-        public void Execute(object gameState, object source)
+        public void Execute(IGameContext context, object source)
         {
-            // debug: Console.WriteLine($"[Effect] Target gains {_amount} {_statName}.");
+            // Logic for High King: Target logic needed
+            // context.ModifyPawnStat(...);
         }
     }
 }

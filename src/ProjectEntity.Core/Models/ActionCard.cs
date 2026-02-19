@@ -15,4 +15,6 @@ public abstract class ActionCard : Card
     {
         Speed = speed;
     }
+
+    protected ActionCard() { }
 }

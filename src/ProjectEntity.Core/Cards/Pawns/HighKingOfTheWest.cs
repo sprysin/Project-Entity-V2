@@ -12,7 +12,7 @@ public class HighKingOfTheWest : Pawn
         Defense = 50;
         Attribute = PawnAttribute.Earth;
         PawnType = PawnType.Warrior;
-        EffectText = "ON SUMMON: Target 1 face-up monster on the field; it loses 20 ATK.";
+        EffectText = "ON SUMMON: Target 1 face-up pawn on the field; it loses 20 ATK.";
 
         // Adding the effect logic
         Effects.Add(new CardEffectLibrary.ModifyStatEffect(-20, "ATK"));
